@@ -36,26 +36,35 @@ def parse_r_to_ir(code: str) -> List[Any]:
 
 
 def translate_r_expr(expr: str) -> str:
-    """Translate simple R expressions to equivalent Python expressions."""
+    """Translate simple R expressions into equivalent Python expressions."""
     expr = expr.strip()
 
-    # Convert c(...) → [...]
+    # --- Handle R vector creation: c(...) -> [ ... ]
     if expr.startswith("c(") and expr.endswith(")"):
-        inner = expr[2:-1]
+        inner = expr[2:-1].strip()
         return f"[{inner}]"
 
-    # Replace df$a → df["a"]
-    if "$" in expr:
-        parts = expr.split("$")
-        return f'{parts[0]}["{parts[1]}"]'
+    # --- Handle $ operator: df$a -> df["a"]
+    # Replace all instances of `$` properly
+    while "$" in expr:
+        before, after = expr.split("$", 1)
+        # Stop at first invalid character
+        var_name = ""
+        for ch in after:
+            if ch.isalnum() or ch == "_":
+                var_name += ch
+            else:
+                break
+        expr = expr.replace(f"${var_name}", f'["{var_name}"]')
 
-    # Replace known function names
+    # --- Map known R functions (e.g. mean, read.csv)
     for r_name, py_name in R_TO_PY_FUNCS.items():
-        if expr.startswith(f"{r_name}("):
-            expr = expr.replace(r_name, py_name, 1)
+        expr = expr.replace(f"{r_name}(", f"{py_name}(")
 
-    # Handle nested calls like data.frame(a=c(...))
-    if "c(" in expr:
-        expr = expr.replace("c(", "[").replace(")", "]", 1)
+    # --- Fix mismatched parentheses
+    open_parens = expr.count("(")
+    close_parens = expr.count(")")
+    if close_parens > open_parens:
+        expr = expr.rstrip(")")
 
     return expr
