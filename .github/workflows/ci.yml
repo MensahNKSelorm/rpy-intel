@@ -32,5 +32,5 @@ jobs:
           uv run ruff check
           uv run mypy src
 
-      - name: Run tests
-        run: uv run pytest -v
+      - name: Run tests with coverage
+        run: uv run pytest --cov=src/rpy_intel --cov-report=term-missing -v
